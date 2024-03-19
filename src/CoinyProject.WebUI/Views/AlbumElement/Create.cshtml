@@ -1,6 +1,6 @@
 ﻿@using CoinyProject.Application.DTO
 @model AlbumElementCreating
-<form method="post" enctype="multipart/form-data">
+<form id="form" method="post" enctype="multipart/form-data">
     <div class="border p-3 mt-4">
         <div class="row pb-2">
             <h2 class="text-primary">Create Album Element</h2>
@@ -42,13 +42,74 @@
     </div>
 </form>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+
 <script type="text/javascript">
-    imgFile.onchange = evt => {
-        const [file] = imgFile.files
-        if (file) {
-            imgViewer.src = URL.createObjectURL(file)
-        }
-    }
+    window.addEventListener('DOMContentLoaded', () => {
+        const imgFile = document.getElementById('imgFile');
+        const imgViewer = document.getElementById('imgViewer');
+        const btnSave = document.getElementById('btnSave');
+        const form = document.getElementById('form');
+
+        let cropper; // Змінна для екземпляру Cropper.js
+
+        // При зміні файлу
+        imgFile.onchange = evt => {
+            const [file] = imgFile.files;
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    imgViewer.src = e.target.result;
+                    if (cropper) {
+                        cropper.destroy(); // Видаляємо попередній Cropper.js, якщо він існує
+                    }
+                    cropper = new Cropper(imgViewer, {
+                        aspectRatio: 1, // Задаємо співвідношення сторін для обрізки, наприклад, 1:1
+                        viewMode: 1, // Фіксуємо область обрізки
+                        crop(event) {
+                            // Виводимо в консоль координати та розміри області обрізки
+                            console.log(event.detail.x);
+                            console.log(event.detail.y);
+                            console.log(event.detail.width);
+                            console.log(event.detail.height);
+                        },
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // При натисканні на кнопку "Add Album Element"
+        btnSave.onclick = () => {
+            if (cropper) {
+                // Отримуємо обрізане фото у форматі Blob
+                cropper.getCroppedCanvas().toBlob((blob) => {
+                    // Створюємо FormData об'єкт для передачі на сервер
+                    console.log(form);
+                    const formData = new FormData(imgFile);
+                    console.log(formData);
+                    formData.append('croppedImage', blob, 'croppedImage.jpg');
+                    console.log(formData);
+                    // Відправляємо дані на сервер за допомогою fetch або іншого методу
+                    fetch('/AlbumElement/Create', {
+                        method: 'POST',
+                        body: formData, // Use 'body' instead of 'data'
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            console.log('Image uploaded successfully');
+                            // Handle the response if needed
+                        })
+                        .catch(error => {
+                            console.error('Error uploading image:', error);
+                        });
+                });
+            }
+        };
+    });
 </script>
 
 @section Scripts {
